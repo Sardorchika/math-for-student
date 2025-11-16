@@ -170,17 +170,14 @@ async function loadMaterials() {
                     </div>
                     <div class="card-actions">
                         ${
-													fileUrl
-														? `<a href="${fileUrl}" download="${
-																item.fileName || 'file'
-														  }" class="btn btn-download" target="_blank" 
-                                 onclick="console.log('📥 Downloading material:', '${
-																		item.title
-																	}', '${fileUrl}'); trackDownload('${
+													item.fileKey || item.fileUrl
+														? `<button class="btn btn-download" onclick="downloadMaterial('${
 																item._id || 'unknown'
-														  }', '${item.title}'); return true;">
+														  }', '${item.title}', '${
+																item.fileName || 'file'
+														  }')">
                                  📥 Yuklab olish
-                                 </a>`
+                                 </button>`
 														: '<button class="btn btn-disabled" disabled>📎 Fayl yuklanmagan</button>'
 												}
                     </div>
@@ -380,6 +377,149 @@ function trackDownload(materialId, title) {
 	showNotification(`"${title}" fayli yuklab olinmoqda...`, 'success')
 }
 
+// New proper download function
+async function downloadMaterial(materialId, title, filename = 'file') {
+	try {
+		debugLog(`📥 Starting download for material: ${title} (ID: ${materialId})`)
+
+		// Show loading notification
+		showNotification(`"${title}" yuklab olinmoqda...`, 'info')
+
+		// Method 1: Try the streaming download endpoint
+		let downloadUrl = `${API_BASE}/materials/${materialId}/download`
+		debugLog(`🔗 Download URL: ${downloadUrl}`)
+
+		// Try download with fallback system
+		const tryDownload = (url, method = 'main') => {
+			debugLog(`🔗 Attempting ${method} download: ${url}`)
+
+			const link = document.createElement('a')
+			link.href = url
+			link.download = filename
+			// target="_blank" olib tashlandi - shu sahifada qolish uchun
+
+			document.body.appendChild(link)
+			link.click()
+			document.body.removeChild(link)
+
+			trackDownload(materialId, title)
+			debugLog(`✅ ${method} download initiated for: ${title}`)
+
+			setTimeout(() => {
+				showNotification(
+					`"${title}" yuklab olindi (${method} usul)!`,
+					'success'
+				)
+			}, 1000)
+		}
+
+		// Method 1: Main download endpoint
+		tryDownload(downloadUrl, 'main')
+	} catch (error) {
+		debugLog(`❌ Download error for ${title}:`, error)
+
+		// Last resort: try direct S3 URL
+		try {
+			debugLog(`🔄 Trying direct S3 fallback...`)
+
+			const materialsResponse = await fetch(`${API_BASE}/materials`)
+			if (materialsResponse.ok) {
+				const materials = await materialsResponse.json()
+				const material = materials.find(m => m._id === materialId)
+
+				if (material && (material.fileUrl || material.fileKey)) {
+					let directUrl = material.fileUrl
+					if (!directUrl && material.fileKey) {
+						directUrl = `https://s3.twcstorage.ru/3dac1c3b-5d899f73-21c9-4b9c-8b6a-8d9ce272565b/${material.fileKey}`
+					}
+					if (directUrl && !directUrl.startsWith('http')) {
+						directUrl = `https://${directUrl}`
+					}
+
+					debugLog(`🔗 Direct S3 URL: ${directUrl}`)
+
+					// Create download link for S3 fallback (without _blank)
+					const s3Link = document.createElement('a')
+					s3Link.href = directUrl
+					s3Link.download = filename
+					document.body.appendChild(s3Link)
+					s3Link.click()
+					document.body.removeChild(s3Link)
+
+					showNotification(`Direct S3 orqali yuklab olinmoqda...`, 'info')
+					return
+				}
+			}
+		} catch (fallbackError) {
+			debugLog(`❌ S3 fallback failed: ${fallbackError.message}`)
+		}
+
+		showNotification(`Yuklab olishda xatolik: ${error.message}`, 'error')
+	}
+}
+
+// Alternative download function using fetch (for better error handling)
+async function downloadMaterialAdvanced(materialId, title, filename = 'file') {
+	try {
+		debugLog(`📥 Advanced download for material: ${title} (ID: ${materialId})`)
+
+		showNotification(`"${title}" yuklab olinmoqda...`, 'info')
+
+		const downloadUrl = `${API_BASE}/materials/${materialId}/download`
+
+		// Fetch the file
+		const response = await fetch(downloadUrl, {
+			method: 'GET',
+			headers: {
+				Accept: 'application/octet-stream',
+			},
+		})
+
+		if (!response.ok) {
+			throw new Error(
+				`Download failed: ${response.status} ${response.statusText}`
+			)
+		}
+
+		// Get the blob
+		const blob = await response.blob()
+
+		// Get filename from Content-Disposition header if available
+		const contentDisposition = response.headers.get('Content-Disposition')
+		let downloadFilename = filename
+
+		if (contentDisposition) {
+			const filenameMatch = contentDisposition.match(
+				/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+			)
+			if (filenameMatch && filenameMatch[1]) {
+				downloadFilename = filenameMatch[1].replace(/['"]/g, '')
+			}
+		}
+
+		// Create download link
+		const url = window.URL.createObjectURL(blob)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = downloadFilename
+
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+
+		// Clean up the blob URL
+		window.URL.revokeObjectURL(url)
+
+		trackDownload(materialId, title)
+
+		debugLog(`✅ Advanced download completed for: ${title}`)
+		showNotification(`"${title}" muvaffaqiyatli yuklab olindi!`, 'success')
+	} catch (error) {
+		debugLog(`❌ Advanced download error for ${title}:`, error)
+		showNotification(`Yuklab olishda xatolik: ${error.message}`, 'error')
+	}
+}
+
 function showNotification(message, type = 'info') {
 	const notification = document.createElement('div')
 	notification.className = `notification notification-${type}`
@@ -546,17 +686,12 @@ function filterMaterials() {
 				</div>
 				<div class="card-actions">
 					${
-						fileUrl
-							? `<a href="${fileUrl}" download="${
-									item.fileName || 'file'
-							  }" class="btn btn-download" target="_blank" 
-							 onclick="console.log('📥 Downloading material:', '${
-									item.title
-								}', '${fileUrl}'); trackDownload('${item._id || 'unknown'}', '${
-									item.title
-							  }'); return true;">
+						item.fileKey || item.fileUrl
+							? `<button class="btn btn-download" onclick="downloadMaterial('${
+									item._id || 'unknown'
+							  }', '${item.title}', '${item.fileName || 'file'}')">
 							 📥 Yuklab olish
-							 </a>`
+							 </button>`
 							: '<button class="btn btn-disabled" disabled>📎 Fayl yuklanmagan</button>'
 					}
 				</div>
