@@ -1,31 +1,122 @@
-// Enhanced API base URL with debug
+// Enhanced API base URL with debug and fallback
 const API_BASE = 'https://api.techdilnoza.uz/api'
+const FALLBACK_API_BASE = 'http://localhost:8080/api' // Local development fallback
+
+// Function to try API with fallback
+async function fetchWithFallback(endpoint, options = {}) {
+	let lastError = null
+
+	// Try main API first
+	try {
+		debugLog(`🔗 Trying main API: ${API_BASE}${endpoint}`)
+		const response = await fetch(`${API_BASE}${endpoint}`, options)
+		if (response.ok) {
+			return response
+		}
+		throw new Error(
+			`Main API failed: ${response.status} ${response.statusText}`
+		)
+	} catch (error) {
+		debugLog(`❌ Main API failed: ${error.message}`)
+		lastError = error
+	}
+
+	// Try fallback API if main fails
+	try {
+		debugLog(`🔗 Trying fallback API: ${FALLBACK_API_BASE}${endpoint}`)
+		const response = await fetch(`${FALLBACK_API_BASE}${endpoint}`, options)
+		if (response.ok) {
+			debugLog(`✅ Fallback API successful`)
+			return response
+		}
+		throw new Error(
+			`Fallback API failed: ${response.status} ${response.statusText}`
+		)
+	} catch (fallbackError) {
+		debugLog(`❌ Fallback API also failed: ${fallbackError.message}`)
+		// Throw the original error from main API
+		throw lastError
+	}
+}
 
 // Debug function
 function debugLog(message, data = null) {
 	console.log(`🔍 [DEBUG] ${message}`, data || '')
 }
 
-// Materials yuklab olish - Enhanced version
+// Enhanced debug function for downloads
+function debugMaterialDownload(materialId, allMaterials) {
+	const material = allMaterials.find(m => m._id === materialId)
+	if (material) {
+		console.group(`📋 Material Debug: ${material.title}`)
+		console.log('🆔 ID:', materialId)
+		console.log('📁 Section:', material.section)
+		console.log('🔗 File URL:', material.fileUrl)
+		console.log('🔑 File Key:', material.fileKey)
+		console.log('📄 File Name:', material.fileName)
+		console.log('📊 File Size:', material.fileSize)
+		console.log('🖼️ Image URL:', material.imageUrl)
+		console.log('🔑 Image Key:', material.imageKey)
+		console.log('📅 Created:', material.createdAt)
+		console.groupEnd()
+
+		// Test URLs
+		if (material.fileKey) {
+			console.log(
+				'🧪 Expected S3 URL:',
+				`https://s3.twcstorage.ru/e008923b-dbcf87a4-7047-45d8-8a51-89a9793149a6/${material.fileKey}`
+			)
+		}
+		console.log(
+			'🧪 Expected API URL:',
+			`${API_BASE}/materials/${materialId}/download`
+		)
+	} else {
+		console.error('❌ Material not found:', materialId)
+		console.log(
+			'📋 Available materials:',
+			allMaterials.map(m => ({ id: m._id, title: m.title }))
+		)
+	}
+}
+
+// Materials yuklab olish - Enhanced version with CORS handling
 async function loadMaterials() {
 	try {
 		debugLog('Starting loadMaterials function')
 		debugLog('API URL:', `${API_BASE}/materials`)
 		debugLog('Current origin:', window.location.origin)
 
-		// Test server connection first
-		debugLog('Testing server connection...')
-		const healthResponse = await fetch(`${API_BASE}/health`)
-		if (!healthResponse.ok) {
-			throw new Error(`Server not responding: ${healthResponse.status}`)
+		// Optional server health check - skip if CORS fails
+		try {
+			debugLog('Testing server connection...')
+			const healthResponse = await fetch(`${API_BASE}/health`, {
+				method: 'GET',
+				mode: 'cors',
+				credentials: 'omit',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			})
+			if (healthResponse.ok) {
+				const healthData = await healthResponse.json()
+				debugLog('Server health check passed:', healthData)
+			} else {
+				debugLog(
+					'Health check failed, but continuing...',
+					healthResponse.status
+				)
+			}
+		} catch (healthError) {
+			debugLog(
+				'Health check skipped due to CORS/network error:',
+				healthError.message
+			)
 		}
 
-		const healthData = await healthResponse.json()
-		debugLog('Server health check passed:', healthData)
-
-		// Now fetch materials
+		// Now fetch materials with fallback
 		debugLog('Fetching materials...')
-		const res = await fetch(`${API_BASE}/materials`, {
+		const res = await fetchWithFallback('/materials', {
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json',
@@ -67,6 +158,7 @@ async function loadMaterials() {
 
 		// Store materials globally for filtering
 		allMaterials = materials
+		window.allMaterials = materials // Make available globally for debugging
 
 		// Process each material
 		materials.forEach((item, index) => {
@@ -91,7 +183,7 @@ async function loadMaterials() {
 				imageUrl = item.imageUrl
 				debugLog(`Using existing imageUrl:`, imageUrl)
 			} else if (item.imageKey) {
-				imageUrl = `https://s3.twcstorage.ru/3dac1c3b-5d899f73-21c9-4b9c-8b6a-8d9ce272565b/${item.imageKey}`
+				imageUrl = `https://s3.twcstorage.ru/e008923b-dbcf87a4-7047-45d8-8a51-89a9793149a6/${item.imageKey}`
 				debugLog(`Generated image URL from imageKey:`, imageUrl)
 			} else {
 				debugLog(`No image available for material: ${item.title}`)
@@ -108,7 +200,7 @@ async function loadMaterials() {
 				fileUrl = item.fileUrl
 				debugLog(`Using existing fileUrl:`, fileUrl)
 			} else if (item.fileKey) {
-				fileUrl = `https://s3.twcstorage.ru/3dac1c3b-5d899f73-21c9-4b9c-8b6a-8d9ce272565b/${item.fileKey}`
+				fileUrl = `https://s3.twcstorage.ru/e008923b-dbcf87a4-7047-45d8-8a51-89a9793149a6/${item.fileKey}`
 				debugLog(`Generated file URL from fileKey:`, fileUrl)
 			} else {
 				debugLog(`No file available for material: ${item.title}`)
@@ -171,7 +263,9 @@ async function loadMaterials() {
                     <div class="card-actions">
                         ${
 													item.fileKey || item.fileUrl
-														? `<button class="btn btn-download" onclick="downloadMaterial('${
+														? `<button class="btn btn-download" onclick="console.log('🖱️ Download clicked for:', '${
+																item.title
+														  }', 'ID:', '${item._id}'); downloadMaterial('${
 																item._id || 'unknown'
 														  }', '${item.title}', '${
 																item.fileName || 'file'
@@ -199,16 +293,41 @@ async function loadMaterials() {
 
 		const container = document.getElementById('cardsContainer')
 		if (container) {
+			// Check if it's a CORS error
+			const isCorsError =
+				error.message.includes('Failed to fetch') ||
+				error.message.includes('CORS') ||
+				error.message.includes('blocked by CORS policy')
+
 			container.innerHTML = `
                 <div class="error-message glass">
-                    <h3>⚠️ Xatolik yuz berdi</h3>
+                    <h3>⚠️ ${
+											isCorsError ? 'CORS/Aloqa Xatoligi' : 'Server Xatoligi'
+										}</h3>
                     <p><strong>Xatolik:</strong> ${error.message}</p>
+                    ${
+											isCorsError
+												? `
+                    <div class="cors-help">
+                        <h4>🔒 CORS Muammosi Hal Qilish:</h4>
+                        <ol>
+                            <li><strong>Backend serverni tekshiring:</strong> api.techdilnoza.uz ishlaydimi?</li>
+                            <li><strong>CORS sozlamalari:</strong> Backend da frontend domini (${window.location.origin}) qo'shilganmi?</li>
+                            <li><strong>SSL sertifikat:</strong> HTTPS to'g'ri ishlayaptimi?</li>
+                            <li><strong>DNS sozlamalari:</strong> Domain to'g'ri IP ga yo'naltirilganmi?</li>
+                        </ol>
+                        <p><strong>Vaqtincha yechim:</strong> Backend serverni localhost:8080 da ishga tushiring</p>
+                    </div>
+                    `
+												: `
                     <p>Server ishlayotganligini tekshiring:</p>
                     <ul>
                         <li>Backend API (api.techdilnoza.uz) ishlaydimi?</li>
-                        <li>CORS to'g'ri sozlangandi?</li>
+                        <li>Server xatoliklari logini tekshiring</li>
                         <li>MongoDB Atlas ulanishi bormi?</li>
                     </ul>
+                    `
+										}
                     <button onclick="loadMaterials()" class="btn">🔄 Qayta yuklash</button>
                     <button onclick="window.open('${API_BASE}/health', '_blank')" class="btn">🔧 Server holatini tekshirish</button>
                 </div>
@@ -222,7 +341,7 @@ async function loadNews() {
 	try {
 		debugLog('Loading news...')
 
-		const res = await fetch(`${API_BASE}/news`, {
+		const res = await fetchWithFallback('/news', {
 			method: 'GET',
 			mode: 'cors',
 			credentials: 'omit',
@@ -294,10 +413,28 @@ async function loadNews() {
 
 		const container = document.getElementById('newsContainer')
 		if (container) {
+			// Check if it's a CORS error
+			const isCorsError =
+				error.message.includes('Failed to fetch') ||
+				error.message.includes('CORS') ||
+				error.message.includes('blocked by CORS policy')
+
 			container.innerHTML = `
                 <div class="error-message glass">
-                    <h3>⚠️ Yangiliklar yuklanmadi</h3>
-                    <p>Xatolik: ${error.message}</p>
+                    <h3>⚠️ ${
+											isCorsError
+												? 'CORS Xatoligi - Yangiliklar'
+												: 'Yangiliklar yuklanmadi'
+										}</h3>
+                    <p><strong>Xatolik:</strong> ${error.message}</p>
+                    ${
+											isCorsError
+												? `
+                    <p><strong>Sabab:</strong> Backend server bilan aloqa o'rnatilmadi (CORS)</p>
+                    <p><strong>Yechim:</strong> Backend serverdagi CORS sozlamalarini tekshiring</p>
+                    `
+												: ''
+										}
                     <button onclick="loadNews()" class="btn">🔄 Qayta yuklash</button>
                 </div>
             `
@@ -330,6 +467,45 @@ document.addEventListener('DOMContentLoaded', function () {
 		debugLog('Loading news...')
 		loadNews()
 	}, 200)
+
+	// Make debug functions available globally
+	window.debugMaterialDownload = debugMaterialDownload
+	window.testDownload = function (materialId) {
+		if (window.allMaterials) {
+			const material = window.allMaterials.find(m => m._id === materialId)
+			if (material) {
+				console.log('🧪 Testing download for:', material.title)
+				downloadMaterial(materialId, material.title, material.fileName)
+			} else {
+				console.error('Material not found:', materialId)
+			}
+		} else {
+			console.error('Materials not loaded yet')
+		}
+	}
+
+	// Test CORS function
+	window.testCORS = async function () {
+		console.group('🧪 CORS Test Results')
+
+		try {
+			console.log('Testing main API:', API_BASE)
+			const mainResponse = await fetch(`${API_BASE}/health`)
+			console.log('✅ Main API working:', mainResponse.status)
+		} catch (error) {
+			console.log('❌ Main API failed:', error.message)
+		}
+
+		try {
+			console.log('Testing fallback API:', FALLBACK_API_BASE)
+			const fallbackResponse = await fetch(`${FALLBACK_API_BASE}/health`)
+			console.log('✅ Fallback API working:', fallbackResponse.status)
+		} catch (error) {
+			console.log('❌ Fallback API failed:', error.message)
+		}
+
+		console.groupEnd()
+	}
 
 	debugLog('Initialization complete')
 })
@@ -377,83 +553,150 @@ function trackDownload(materialId, title) {
 	showNotification(`"${title}" fayli yuklab olinmoqda...`, 'success')
 }
 
-// New proper download function
+// Enhanced download function with better error handling
 async function downloadMaterial(materialId, title, filename = 'file') {
 	try {
 		debugLog(`📥 Starting download for material: ${title} (ID: ${materialId})`)
 
+		// Debug material info
+		if (window.allMaterials && window.allMaterials.length > 0) {
+			debugMaterialDownload(materialId, window.allMaterials)
+		}
+
 		// Show loading notification
 		showNotification(`"${title}" yuklab olinmoqda...`, 'info')
 
-		// Method 1: Try the streaming download endpoint
-		let downloadUrl = `${API_BASE}/materials/${materialId}/download`
-		debugLog(`🔗 Download URL: ${downloadUrl}`)
+		// First, get the material info to check if it exists and has files
+		debugLog(`🔍 Checking material existence: ${materialId}`)
 
-		// Try download with fallback system
-		const tryDownload = (url, method = 'main') => {
-			debugLog(`🔗 Attempting ${method} download: ${url}`)
+		const materialsResponse = await fetchWithFallback('/materials')
+		if (!materialsResponse.ok) {
+			throw new Error(`Materials API failed: ${materialsResponse.status}`)
+		}
 
-			const link = document.createElement('a')
-			link.href = url
-			link.download = filename
-			// target="_blank" olib tashlandi - shu sahifada qolish uchun
+		const materials = await materialsResponse.json()
+		const material = materials.find(m => m._id === materialId)
 
-			document.body.appendChild(link)
-			link.click()
-			document.body.removeChild(link)
+		if (!material) {
+			throw new Error('Material topilmadi')
+		}
 
-			trackDownload(materialId, title)
-			debugLog(`✅ ${method} download initiated for: ${title}`)
+		debugLog(`✅ Material found:`, {
+			title: material.title,
+			fileUrl: material.fileUrl,
+			fileKey: material.fileKey,
+			fileName: material.fileName,
+		})
 
-			setTimeout(() => {
+		if (!material.fileUrl && !material.fileKey) {
+			throw new Error('Bu materialga fayl biriktirilmagan')
+		}
+
+		// Try multiple download methods
+		let downloadSuccess = false
+
+		// Method 1: Try the API download endpoint
+		try {
+			debugLog(`🔗 Method 1: API Download endpoint`)
+			const downloadUrl = `${API_BASE}/materials/${materialId}/download`
+			debugLog(`🔗 Download URL: ${downloadUrl}`)
+
+			// Check if the download endpoint responds
+			const downloadResponse = await fetch(downloadUrl, { method: 'HEAD' })
+
+			if (downloadResponse.ok) {
+				// If endpoint exists, use it
+				const link = document.createElement('a')
+				link.href = downloadUrl
+				link.download = material.fileName || filename
+				document.body.appendChild(link)
+				link.click()
+				document.body.removeChild(link)
+
+				downloadSuccess = true
+				debugLog(`✅ API download successful`)
+				trackDownload(materialId, title)
+				showNotification(`"${title}" API orqali yuklab olindi!`, 'success')
+			} else {
+				debugLog(
+					`❌ API download endpoint not available: ${downloadResponse.status}`
+				)
+			}
+		} catch (apiError) {
+			debugLog(`❌ API download failed:`, apiError.message)
+		}
+
+		// Method 2: Direct S3 URL fallback
+		if (!downloadSuccess) {
+			debugLog(`🔗 Method 2: Direct S3 fallback`)
+
+			let directUrl = null
+
+			if (material.fileUrl && !material.fileUrl.includes('placeholder')) {
+				directUrl = material.fileUrl
+			} else if (material.fileKey) {
+				directUrl = `https://s3.twcstorage.ru/e008923b-dbcf87a4-7047-45d8-8a51-89a9793149a6/${material.fileKey}`
+			}
+
+			if (directUrl) {
+				// Ensure HTTPS
+				if (
+					!directUrl.startsWith('http://') &&
+					!directUrl.startsWith('https://')
+				) {
+					directUrl = `https://${directUrl}`
+				}
+
+				debugLog(`🔗 Direct S3 URL: ${directUrl}`)
+
+				const link = document.createElement('a')
+				link.href = directUrl
+				link.download = material.fileName || filename
+				link.target = '_blank' // Open in new tab for S3 direct links
+				document.body.appendChild(link)
+				link.click()
+				document.body.removeChild(link)
+
+				downloadSuccess = true
+				debugLog(`✅ S3 direct download successful`)
+				trackDownload(materialId, title)
+				showNotification(`"${title}" S3 orqali yuklab olindi!`, 'success')
+			}
+		}
+
+		// Method 3: Alternative download endpoint
+		if (!downloadSuccess) {
+			debugLog(`🔗 Method 3: Alternative download endpoint`)
+
+			try {
+				const altDownloadUrl = `${API_BASE}/materials/${materialId}/download-redirect`
+				debugLog(`🔗 Alternative URL: ${altDownloadUrl}`)
+
+				const link = document.createElement('a')
+				link.href = altDownloadUrl
+				link.download = material.fileName || filename
+				link.target = '_blank'
+				document.body.appendChild(link)
+				link.click()
+				document.body.removeChild(link)
+
+				downloadSuccess = true
+				debugLog(`✅ Alternative download successful`)
+				trackDownload(materialId, title)
 				showNotification(
-					`"${title}" yuklab olindi (${method} usul)!`,
+					`"${title}" muqobil usul orqali yuklab olindi!`,
 					'success'
 				)
-			}, 1000)
-		}
-
-		// Method 1: Main download endpoint
-		tryDownload(downloadUrl, 'main')
-	} catch (error) {
-		debugLog(`❌ Download error for ${title}:`, error)
-
-		// Last resort: try direct S3 URL
-		try {
-			debugLog(`🔄 Trying direct S3 fallback...`)
-
-			const materialsResponse = await fetch(`${API_BASE}/materials`)
-			if (materialsResponse.ok) {
-				const materials = await materialsResponse.json()
-				const material = materials.find(m => m._id === materialId)
-
-				if (material && (material.fileUrl || material.fileKey)) {
-					let directUrl = material.fileUrl
-					if (!directUrl && material.fileKey) {
-						directUrl = `https://s3.twcstorage.ru/3dac1c3b-5d899f73-21c9-4b9c-8b6a-8d9ce272565b/${material.fileKey}`
-					}
-					if (directUrl && !directUrl.startsWith('http')) {
-						directUrl = `https://${directUrl}`
-					}
-
-					debugLog(`🔗 Direct S3 URL: ${directUrl}`)
-
-					// Create download link for S3 fallback (without _blank)
-					const s3Link = document.createElement('a')
-					s3Link.href = directUrl
-					s3Link.download = filename
-					document.body.appendChild(s3Link)
-					s3Link.click()
-					document.body.removeChild(s3Link)
-
-					showNotification(`Direct S3 orqali yuklab olinmoqda...`, 'info')
-					return
-				}
+			} catch (altError) {
+				debugLog(`❌ Alternative download failed:`, altError.message)
 			}
-		} catch (fallbackError) {
-			debugLog(`❌ S3 fallback failed: ${fallbackError.message}`)
 		}
 
+		if (!downloadSuccess) {
+			throw new Error('Barcha yuklab olish usullari ishlamadi')
+		}
+	} catch (error) {
+		debugLog(`❌ Final download error for ${title}:`, error)
 		showNotification(`Yuklab olishda xatolik: ${error.message}`, 'error')
 	}
 }
@@ -629,7 +872,7 @@ function filterMaterials() {
 		) {
 			imageUrl = item.imageUrl
 		} else if (item.imageKey) {
-			imageUrl = `https://s3.twcstorage.ru/3dac1c3b-5d899f73-21c9-4b9c-8b6a-8d9ce272565b/${item.imageKey}`
+			imageUrl = `https://s3.twcstorage.ru/e008923b-dbcf87a4-7047-45d8-8a51-89a9793149a6/${item.imageKey}`
 		}
 
 		let fileUrl = null
@@ -641,7 +884,7 @@ function filterMaterials() {
 		) {
 			fileUrl = item.fileUrl
 		} else if (item.fileKey) {
-			fileUrl = `https://s3.twcstorage.ru/3dac1c3b-5d899f73-21c9-4b9c-8b6a-8d9ce272565b/${item.fileKey}`
+			fileUrl = `https://s3.twcstorage.ru/e008923b-dbcf87a4-7047-45d8-8a51-89a9793149a6/${item.fileKey}`
 		}
 
 		// Create card element
@@ -687,7 +930,9 @@ function filterMaterials() {
 				<div class="card-actions">
 					${
 						item.fileKey || item.fileUrl
-							? `<button class="btn btn-download" onclick="downloadMaterial('${
+							? `<button class="btn btn-download" onclick="console.log('🖱️ Filter download clicked for:', '${
+									item.title
+							  }', 'ID:', '${item._id}'); downloadMaterial('${
 									item._id || 'unknown'
 							  }', '${item.title}', '${item.fileName || 'file'}')">
 							 📥 Yuklab olish
