@@ -1,5 +1,5 @@
 // Enhanced API base URL with debug
-const API_BASE = 'http://localhost:8080/api'
+const API_BASE = 'https://api.techdilnoza.uz/api'
 
 // Debug function
 function debugLog(message, data = null) {
@@ -205,7 +205,7 @@ async function loadMaterials() {
                     <p><strong>Xatolik:</strong> ${error.message}</p>
                     <p>Server ishlayotganligini tekshiring:</p>
                     <ul>
-                        <li>Backend server 8080 portda ishlaydimi?</li>
+                        <li>Backend API (api.techdilnoza.uz) ishlaydimi?</li>
                         <li>CORS to'g'ri sozlangandi?</li>
                         <li>MongoDB Atlas ulanishi bormi?</li>
                     </ul>
