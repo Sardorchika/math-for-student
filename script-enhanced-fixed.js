@@ -1,8 +1,74 @@
-// Enhanced API base URL with debug and fallback
+// Production API Configuration
 const API_BASE = 'https://api.techdilnoza.uz/api'
 const FALLBACK_API_BASE = 'http://localhost:8080/api' // Local development fallback
 
-// Function to try API with fallback
+// API Connection Status for Frontend
+let FRONTEND_API_STATUS = {
+	main: 'unknown',
+	fallback: 'unknown',
+	usingDemo: false,
+	lastChecked: null,
+}
+
+// Demo data for offline mode
+const DEMO_MATERIALS = [
+	{
+		_id: 'demo1',
+		section: 'lectures',
+		title: 'Basic English Grammar',
+		description:
+			"Ingliz tili grammatikasining asoslari. Yangi boshlovchilar uchun mo'ljallangan darslik.",
+		imageUrl: 'https://via.placeholder.com/300x200?text=English+Grammar',
+		fileUrl: '#demo-file',
+		fileName: 'english-grammar-basics.pdf',
+		createdAt: '2024-11-17T10:00:00Z',
+	},
+	{
+		_id: 'demo2',
+		section: 'practicals',
+		title: 'Speaking Practice Exercises',
+		description:
+			"Gapirish ko'nikmalarini rivojlantirish uchun amaliy mashg'ulotlar va mashqlar.",
+		imageUrl: 'https://via.placeholder.com/300x200?text=Speaking+Practice',
+		fileUrl: '#demo-file',
+		fileName: 'speaking-exercises.docx',
+		createdAt: '2024-11-16T14:30:00Z',
+	},
+	{
+		_id: 'demo3',
+		section: 'presentations',
+		title: 'Business English Presentation',
+		description:
+			"Biznes ingliz tilida taqdimot qilish bo'yicha ko'rsatmalar va misollar.",
+		imageUrl: 'https://via.placeholder.com/300x200?text=Business+English',
+		fileUrl: '#demo-file',
+		fileName: 'business-presentation.pptx',
+		createdAt: '2024-11-15T09:15:00Z',
+	},
+]
+
+const DEMO_NEWS = [
+	{
+		_id: 'news1',
+		title: "Yangi dars materiallari qo'shildi",
+		content:
+			"Ingliz tili o'rganish uchun yangi materiallar va amaliy mashg'ulotlar qo'shildi. Barcha o'quvchilar uchun bepul.",
+		author: 'Dilnoza Qodirova',
+		date: '2024-11-17T08:00:00Z',
+		createdAt: '2024-11-17T08:00:00Z',
+	},
+	{
+		_id: 'news2',
+		title: 'Online darslar boshlanadi',
+		content:
+			"Dekabr oyidan boshlab online ingliz tili darslari boshlanadi. Ro'yxatdan o'tish uchun bog'laning.",
+		author: 'Dilnoza Qodirova',
+		date: '2024-11-16T12:00:00Z',
+		createdAt: '2024-11-16T12:00:00Z',
+	},
+]
+
+// Enhanced function with offline demo data support
 async function fetchWithFallback(endpoint, options = {}) {
 	let lastError = null
 
@@ -34,9 +100,97 @@ async function fetchWithFallback(endpoint, options = {}) {
 		)
 	} catch (fallbackError) {
 		debugLog(`❌ Fallback API also failed: ${fallbackError.message}`)
-		// Throw the original error from main API
-		throw lastError
 	}
+
+	// If both APIs fail, try demo data for GET requests
+	if (options.method === 'GET' || !options.method) {
+		debugLog(`🎭 Using offline demo data for: ${endpoint}`)
+		return createDemoResponse(endpoint)
+	}
+
+	// For non-GET requests, throw the original error
+	throw lastError
+}
+
+// Create mock response for demo data
+function createDemoResponse(endpoint) {
+	let data = null
+
+	if (endpoint === '/materials') {
+		data = DEMO_MATERIALS
+	} else if (endpoint === '/news') {
+		data = DEMO_NEWS
+	} else if (endpoint === '/health') {
+		data = {
+			status: 'DEMO MODE',
+			message: 'Using offline demo data',
+			timestamp: new Date().toISOString(),
+		}
+	} else {
+		throw new Error('No demo data available for this endpoint')
+	}
+
+	return Promise.resolve({
+		ok: true,
+		status: 200,
+		json: () => Promise.resolve(data),
+		text: () => Promise.resolve(JSON.stringify(data)),
+	})
+}
+
+// Test API connectivity for frontend
+async function testFrontendAPIConnectivity() {
+	console.group('🔧 Frontend API Connectivity Test')
+
+	try {
+		const response = await fetch(`${API_BASE}/health`, {
+			method: 'GET',
+			mode: 'cors',
+			credentials: 'omit',
+			headers: { Accept: 'application/json' },
+		})
+
+		if (response.ok) {
+			FRONTEND_API_STATUS.main = 'online'
+			FRONTEND_API_STATUS.usingDemo = false
+			console.log('✅ Main API is online')
+
+			// Hide demo notification if shown
+			const demoNotification = document.querySelector('.notification-warning')
+			if (demoNotification) {
+				demoNotification.remove()
+			}
+		} else {
+			throw new Error(`Status: ${response.status}`)
+		}
+	} catch (error) {
+		FRONTEND_API_STATUS.main = 'offline'
+		console.log('❌ Main API offline:', error.message)
+
+		// Test fallback for development
+		if (
+			window.location.hostname === 'localhost' ||
+			window.location.hostname === '127.0.0.1'
+		) {
+			try {
+				const fallbackResponse = await fetch(`${FALLBACK_API_BASE}/health`)
+				if (fallbackResponse.ok) {
+					FRONTEND_API_STATUS.fallback = 'online'
+					FRONTEND_API_STATUS.usingDemo = false
+					console.log('✅ Fallback API is online')
+				}
+			} catch (fallbackError) {
+				FRONTEND_API_STATUS.fallback = 'offline'
+				FRONTEND_API_STATUS.usingDemo = true
+				console.log('❌ Using demo data mode')
+			}
+		} else {
+			FRONTEND_API_STATUS.usingDemo = true
+		}
+	}
+
+	FRONTEND_API_STATUS.lastChecked = new Date().toISOString()
+	console.groupEnd()
 }
 
 // Debug function
@@ -451,11 +605,19 @@ function setCurrentYear() {
 }
 
 // Page load event - Enhanced
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
 	debugLog('DOM loaded, starting initialization...')
 
 	// Set year first
 	setCurrentYear()
+
+	// Test API connectivity first
+	const isAPIConnected = await testAPIConnectivity()
+
+	if (!isAPIConnected) {
+		showConnectionWarning()
+		console.log('🔄 Using demo mode due to API connectivity issues')
+	}
 
 	// Load data with delays to see progress
 	setTimeout(() => {
@@ -763,14 +925,20 @@ async function downloadMaterialAdvanced(materialId, title, filename = 'file') {
 	}
 }
 
-function showNotification(message, type = 'info') {
+function showNotification(message, type = 'info', duration = 3000) {
 	const notification = document.createElement('div')
 	notification.className = `notification notification-${type}`
+
+	const icons = {
+		success: '✅',
+		error: '❌',
+		warning: '⚠️',
+		info: 'ℹ️',
+	}
+
 	notification.innerHTML = `
 		<div class="notification-content">
-			<span class="notification-icon">${
-				type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'
-			}</span>
+			<span class="notification-icon">${icons[type] || icons.info}</span>
 			<span class="notification-message">${message}</span>
 		</div>
 	`
@@ -780,11 +948,11 @@ function showNotification(message, type = 'info') {
 	// Show animation
 	setTimeout(() => notification.classList.add('show'), 10)
 
-	// Auto remove after 3 seconds
+	// Auto remove after specified duration
 	setTimeout(() => {
 		notification.classList.remove('show')
 		setTimeout(() => notification.remove(), 300)
-	}, 3000)
+	}, duration)
 }
 
 function updateMaterialsStats(materials) {
@@ -823,6 +991,49 @@ function animateCounter(elementId, targetValue) {
 			element.textContent = current + increment
 		}
 	}, stepTime)
+}
+
+// Test API connectivity
+async function testAPIConnectivity() {
+	try {
+		console.log('🔧 Testing API connectivity...')
+		const response = await fetch(API_BASE + '/materials', {
+			method: 'GET',
+			signal: AbortSignal.timeout(10000),
+		})
+
+		if (response.ok) {
+			console.log('✅ API connectivity test passed')
+			return true
+		} else {
+			console.warn('⚠️ API connectivity test failed:', response.status)
+			return false
+		}
+	} catch (error) {
+		console.warn('⚠️ API connectivity test error:', error.message)
+		return false
+	}
+}
+
+// Show API connection warning
+function showConnectionWarning() {
+	const existingWarning = document.querySelector('.api-warning')
+	if (existingWarning) return
+
+	const warning = document.createElement('div')
+	warning.className = 'api-warning'
+	warning.innerHTML = `
+		⚠️ API ulanishida muammo bor. 
+		Demo rejimida ishlayapmiz.
+	`
+	document.body.appendChild(warning)
+
+	// Auto remove after 10 seconds
+	setTimeout(() => {
+		if (warning.parentNode) {
+			warning.remove()
+		}
+	}, 10000)
 }
 
 // Global materials storage for filtering
