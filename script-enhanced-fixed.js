@@ -545,7 +545,7 @@ async function loadNews() {
 			// Safe content handling
 			const title = item.title || 'Yangilik sarlavhasi'
 			const content = item.content || "Yangilik matni yo'q"
-			const author = item.author || 'Dilnoza Qodirova'
+			const author = item.author || "Dilnoza Jo'rayeva"
 
 			newsCard.innerHTML = `
                 <div class="news-content">
