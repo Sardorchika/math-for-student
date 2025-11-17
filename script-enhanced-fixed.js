@@ -993,24 +993,13 @@ function animateCounter(elementId, targetValue) {
 	}, stepTime)
 }
 
-// Test API connectivity
+// Unified API connectivity check – delegate to the more comprehensive frontend tester
 async function testAPIConnectivity() {
+	// testFrontendAPIConnectivity performs /health and fallback checks; reuse it to avoid duplicated logic
 	try {
-		console.log('🔧 Testing API connectivity...')
-		const response = await fetch(API_BASE + '/materials', {
-			method: 'GET',
-			signal: AbortSignal.timeout(10000),
-		})
-
-		if (response.ok) {
-			console.log('✅ API connectivity test passed')
-			return true
-		} else {
-			console.warn('⚠️ API connectivity test failed:', response.status)
-			return false
-		}
-	} catch (error) {
-		console.warn('⚠️ API connectivity test error:', error.message)
+		return await testFrontendAPIConnectivity()
+	} catch (e) {
+		console.warn('⚠️ testAPIConnectivity wrapper error:', e && e.message)
 		return false
 	}
 }
