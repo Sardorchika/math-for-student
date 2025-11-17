@@ -1,6 +1,6 @@
 // Production API Configuration
 const API_BASE = 'https://api.techdilnoza.uz/api'
-const FALLBACK_API_BASE = 'https://localhost:8080/api'
+const FALLBACK_API_BASE = 'https://api.techdilnoza.uz/api'
 
 // API Connection Status for Frontend
 let FRONTEND_API_STATUS = {
