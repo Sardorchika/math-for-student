@@ -698,7 +698,7 @@ header.site-header {
 	transform: translateY(-2px);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 500px) {
 	.hero-grid {
 		grid-template-columns: 1fr;
 	}
