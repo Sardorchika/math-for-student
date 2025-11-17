@@ -739,7 +739,9 @@ header.site-header {
 	.card .icon {
 		height: 160px;
 	}
-
+	.news-card {
+		max-width: 750px
+	}
 	.notification,
 	.api-warning {
 		right: 10px;
