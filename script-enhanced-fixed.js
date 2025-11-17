@@ -1,5 +1,6 @@
 // Production API Configuration
-const API_BASE = 'https://api.techdilnoza.uz/api' 
+const API_BASE = 'https://api.techdilnoza.uz/api'
+
 // API Connection Status for Frontend
 let FRONTEND_API_STATUS = {
 	main: 'unknown',
