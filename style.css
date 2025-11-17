@@ -699,12 +699,45 @@ header.site-header {
 }
 
 @media (max-width: 768px) {
-	.hero-grid {
-		grid-template-columns: 1fr;
-	}
+	
 	.header-inner {
 		flex-direction: column;
 		gap: 10px;
+		padding: 10px 0;
+	}
+
+	.main-nav ul {
+		flex-wrap: wrap;
+		justify-content: center;
+	}
+
+	.hero-grid {
+		grid-template-columns: 1fr;
+		text-align: center;
+	}
+
+	.hero-card {
+		flex-direction: column;
+		text-align: center;
+	}
+
+	.avatar {
+		width: 120px;
+		height: 120px;
+	}
+
+	.materials-stats {
+		flex-wrap: wrap;
+	}
+
+	.cards {
+		grid-template-columns: 1fr;
+	}
+
+	.card-image,
+	.no-image-placeholder,
+	.card .icon {
+		height: 160px;
 	}
 
 	.notification,
