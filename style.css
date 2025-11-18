@@ -566,6 +566,57 @@ header.site-header {
 }
 
 /* Modal styles removed - materials display directly */
+/* BOG'LANISH BLOKI (Contact Info) */
+.contact-info {
+    background: var(--glass-bg);
+    padding: 20px;
+    border-radius: var(--radius);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    transition: 0.3s ease;
+}
+
+/* Hover effekti – biroz ko‘tarilish */
+.contact-info:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+}
+
+/* Sarlavha */
+.contact-info h4 {
+    font-size: 20px;
+    margin-bottom: 15px;
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Matn va linklar */
+.contact-info p,
+.contact-info a {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+/* Linklar – hover effekti bilan */
+.contact-info a {
+    text-decoration: none;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+.contact-info a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+/* Pastdagi izoh matni */
+.contact-info .muted {
+    font-size: 14px;
+    opacity: 0.8;
+    margin-top: 10px;
+}
 
 /* Notification Styles */
 .notification {
