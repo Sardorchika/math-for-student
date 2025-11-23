@@ -1,7 +1,6 @@
 // Production API Configuration
 const API_BASE = 'https://api.techdilnoza.uz/api'
 
-
 // API Connection Status for Frontend
 let FRONTEND_API_STATUS = {
 	main: 'unknown',
@@ -611,24 +610,15 @@ document.addEventListener('DOMContentLoaded', async function () {
 	// Set year first
 	setCurrentYear()
 
-	// Test API connectivity first
-	const isAPIConnected = await testAPIConnectivity()
+	// Test API connectivity first (silently)
+	await testAPIConnectivity()
 
-	if (!isAPIConnected) {
-		showConnectionWarning()
-		console.log('🔄 Using demo mode due to API connectivity issues')
-	}
+	// Load data immediately - no demo mode warnings
+	debugLog('Loading materials...')
+	loadMaterials()
 
-	// Load data with delays to see progress
-	setTimeout(() => {
-		debugLog('Loading materials...')
-		loadMaterials()
-	}, 100)
-
-	setTimeout(() => {
-		debugLog('Loading news...')
-		loadNews()
-	}, 200)
+	debugLog('Loading news...')
+	loadNews()
 
 	// Make debug functions available globally
 	window.debugMaterialDownload = debugMaterialDownload
@@ -1004,17 +994,11 @@ async function testAPIConnectivity() {
 	}
 }
 
-// Show API connection warning
+// Show API connection warning - DISABLED
 function showConnectionWarning() {
-	const existingWarning = document.querySelector('.api-warning')
-	if (existingWarning) return
-
-	// Auto remove after 10 seconds
-	setTimeout(() => {
-		if (warning.parentNode) {
-			warning.remove()
-		}
-	}, 10000)
+	// Warning notification disabled - API should work correctly
+	console.log('🔕 API connection warning suppressed')
+	return
 }
 
 // Global materials storage for filtering
