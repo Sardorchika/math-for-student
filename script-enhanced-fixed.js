@@ -1,6 +1,6 @@
 // Production API Configuration
 const API_BASE = 'https://api.techdilnoza.uz/api'
-const FALLBACK_API_BASE = 'https://api.techdilnoza.uz/api'
+
 
 // API Connection Status for Frontend
 let FRONTEND_API_STATUS = {
@@ -89,8 +89,8 @@ async function fetchWithFallback(endpoint, options = {}) {
 
 	// Try fallback API if main fails
 	try {
-		debugLog(`🔗 Trying fallback API: ${FALLBACK_API_BASE}${endpoint}`)
-		const response = await fetch(`${FALLBACK_API_BASE}${endpoint}`, options)
+		debugLog(`🔗 Trying fallback API: ${API_BASE}${endpoint}`)
+		const response = await fetch(`${API_BASE}${endpoint}`, options)
 		if (response.ok) {
 			debugLog(`✅ Fallback API successful`)
 			return response
@@ -173,7 +173,7 @@ async function testFrontendAPIConnectivity() {
 			window.location.hostname === '127.0.0.1'
 		) {
 			try {
-				const fallbackResponse = await fetch(`${FALLBACK_API_BASE}/health`)
+				const fallbackResponse = await fetch(`${API_BASE}/health`)
 				if (fallbackResponse.ok) {
 					FRONTEND_API_STATUS.fallback = 'online'
 					FRONTEND_API_STATUS.usingDemo = false
@@ -659,8 +659,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 		}
 
 		try {
-			console.log('Testing fallback API:', FALLBACK_API_BASE)
-			const fallbackResponse = await fetch(`${FALLBACK_API_BASE}/health`)
+			console.log('Testing fallback API:', API_BASE)
+			const fallbackResponse = await fetch(`${API_BASE}/health`)
 			console.log('✅ Fallback API working:', fallbackResponse.status)
 		} catch (error) {
 			console.log('❌ Fallback API failed:', error.message)
@@ -1008,14 +1008,6 @@ async function testAPIConnectivity() {
 function showConnectionWarning() {
 	const existingWarning = document.querySelector('.api-warning')
 	if (existingWarning) return
-
-	const warning = document.createElement('div')
-	warning.className = 'api-warning'
-	warning.innerHTML = `
-		⚠️ API ulanishida muammo bor. 
-		Demo rejimida ishlayapmiz.
-	`
-	document.body.appendChild(warning)
 
 	// Auto remove after 10 seconds
 	setTimeout(() => {
