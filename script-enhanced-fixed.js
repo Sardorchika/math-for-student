@@ -1132,3 +1132,64 @@ function filterMaterials() {
 		'info'
 	)
 }
+
+
+const slidesContainer = document.querySelector('.slides');
+const slides = document.querySelectorAll('.slide');
+const prev = document.querySelector('.prev');
+const next = document.querySelector('.next');
+
+let currentIndex = 0;
+let isTransitioning = false;
+
+// Slaydlarni klonlab infinite effekt yaratish
+const firstClone = slides[0].cloneNode(true);
+const lastClone = slides[slides.length - 1].cloneNode(true);
+
+slidesContainer.appendChild(firstClone);
+slidesContainer.insertBefore(lastClone, slidesContainer.firstChild);
+
+const allSlides = document.querySelectorAll('.slide');
+slidesContainer.style.transform = `translateX(-100%)`; // start from actual first slide
+currentIndex = 1;
+
+function moveToSlide(index) {
+  if (isTransitioning) return;
+  isTransitioning = true;
+  slidesContainer.style.transition = 'transform 0.5s ease-in-out';
+  slidesContainer.style.transform = `translateX(-${index * 100}%)`;
+  currentIndex = index;
+}
+
+// Tugmalar
+next.addEventListener('click', () => {
+  moveToSlide(currentIndex + 1);
+});
+
+prev.addEventListener('click', () => {
+  moveToSlide(currentIndex - 1);
+});
+
+// Transition tugagandan keyin tekshirish
+slidesContainer.addEventListener('transitionend', () => {
+  isTransitioning = false;
+  if (allSlides[currentIndex].id === 'first-clone') {
+    slidesContainer.style.transition = 'none';
+    currentIndex = 1;
+    slidesContainer.style.transform = `translateX(-${currentIndex * 100}%)`;
+  }
+  if (allSlides[currentIndex].id === 'last-clone') {
+    slidesContainer.style.transition = 'none';
+    currentIndex = allSlides.length - 2;
+    slidesContainer.style.transform = `translateX(-${currentIndex * 100}%)`;
+  }
+});
+
+// Avto-slide
+setInterval(() => {
+  moveToSlide(currentIndex + 1);
+}, 5000);
+
+// Klonlar uchun id qo‘yish
+firstClone.id = 'first-clone';
+lastClone.id = 'last-clone';
